@@ -1,3 +1,5 @@
+import os
+import tempfile
 import streamlit as st
 from PIL import Image
 import io
@@ -82,7 +84,8 @@ if 'analysis_result' not in st.session_state:
 
 def display_header():
     """Display the application header"""
-    st.markdown('<div class="main-header">AI-Powered Learning Platform</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">AI-Powered Learning Platform</div>',
+                unsafe_allow_html=True)
     st.markdown(
         '<div class="sub-header">Recognize and translate community challenges into structured learning missions statements</div>',
         unsafe_allow_html=True
@@ -94,27 +97,30 @@ def process_image(image_file, domains):
     with st.spinner("Analyzing image..."):
         # Save uploaded file temporarily
         image = Image.open(image_file)
-        
+
         # Convert to bytes for processing
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format=image.format or 'PNG')
         img_byte_arr = img_byte_arr.getvalue()
-        
+
         # Save temporarily
-        temp_path = "/tmp/uploaded_image.jpg"
+        temp_path = os.path.join(tempfile.gettempdir(), "uploaded_image.jpg")
+        # temp_path = "/tmp/uploaded_image.jpg"
         with open(temp_path, "wb") as f:
             f.write(img_byte_arr)
-        
+
         # Process with platform
-        result = st.session_state.platform.process_image(temp_path, domains=domains)
-        
+        result = st.session_state.platform.process_image(
+            temp_path, domains=domains)
+
         return result
 
 
 def process_text(problem_description):
     """Process text description"""
     with st.spinner("Processing description..."):
-        result = st.session_state.platform.process_text_description(problem_description)
+        result = st.session_state.platform.process_text_description(
+            problem_description)
         return result
 
 
@@ -123,29 +129,32 @@ def display_results(result):
     if not result.get('success'):
         st.error(f"Error: {result.get('error', 'Unknown error occurred')}")
         return
-    
+
     st.success("Analysis Complete!")
-    
+
     # Create tabs for different sections
-    tab1, tab2, tab3 = st.tabs(["Detection", "Classification", "Mission Statement"])
+    tab1, tab2, tab3 = st.tabs(
+        ["Detection", "Classification", "Mission Statement"])
 
     with tab1:
-        st.markdown("### Vision Analysis" if 'vision_analysis' in result else "### Problem Description")
-        
+        st.markdown(
+            "### Vision Analysis" if 'vision_analysis' in result else "### Problem Description")
+
         if 'vision_analysis' in result:
             st.markdown('<div class="info-box">', unsafe_allow_html=True)
             st.markdown(result['vision_analysis'])
             st.markdown('</div>', unsafe_allow_html=True)
         elif 'original_description' in result:
-            st.info(f"**Original Description:** {result['original_description']}")
-    
+            st.info(
+                f"**Original Description:** {result['original_description']}")
+
     with tab2:
         st.markdown("### Problem Classification")
-        
+
         classification = result.get('classification', {})
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             category = classification.get('category', 'Unknown')
             emoji_map = {
@@ -154,46 +163,46 @@ def display_results(result):
                 'Education': ''
             }
             st.metric("Category", f"{emoji_map.get(category, '❓')} {category}")
-        
+
         with col2:
             confidence = classification.get('confidence', 'Unknown')
             st.metric("Confidence", confidence)
-        
+
         if classification.get('reasoning'):
             st.markdown("**Reasoning:**")
             st.info(classification['reasoning'])
-    
+
     with tab3:
         st.markdown("### Mission Statement")
-        
+
         mission = result.get('mission_statement', {})
-        
+
         if mission.get('mission_statement'):
             st.markdown('<div class="success-box">', unsafe_allow_html=True)
             st.markdown(f"**{mission['mission_statement']}**")
             st.markdown('</div>', unsafe_allow_html=True)
-        
+
         # Problem Definition
         if mission.get('problem_definition'):
             st.markdown("#### Problem Definition")
             st.write(mission['problem_definition'])
-        
+
         # Goal
         if mission.get('goal'):
             st.markdown("#### Goal")
             st.write(mission['goal'])
-        
+
         # Expected Impact
         if mission.get('expected_impact'):
             st.markdown("#### Expected Impact")
             st.write(mission['expected_impact'])
-        
+
         # Action Steps
         if mission.get('action_steps'):
             st.markdown("#### Action Steps")
             for i, step in enumerate(mission['action_steps'], 1):
                 st.markdown(f"{i}. {step}")
-    
+
     # Download results
     st.markdown("---")
     col1, col2 = st.columns([3, 1])
@@ -222,7 +231,7 @@ def display_results(result):
 """
         for i, step in enumerate(result.get('mission_statement', {}).get('action_steps', []), 1):
             download_content += f"{i}. {step}\n"
-        
+
         st.download_button(
             label="Download Report",
             data=download_content,
@@ -235,7 +244,7 @@ def main():
     """Main application"""
     # Display header
     display_header()
-    
+
     # Check API configuration
     if not st.session_state.api_configured:
         st.error("Gemini API key not configured!")
@@ -247,68 +256,73 @@ def main():
         Then restart the application.
         """)
         return
-    
+
     # Main content area
     st.markdown("---")
-    
+
     # Input method selection
     input_method = st.radio(
         "Choose input method:",
         ["Upload Image", "Describe Problem"],
         horizontal=True
     )
-    
+
     st.markdown("---")
-    
+
     if input_method == "Upload Image":
         # Image upload section
         st.markdown("### Upload Community Issue Image")
-        st.markdown("Upload a photo showing a community problem (environment, health, or education issue)")
-        
+        st.markdown(
+            "Upload a photo showing a community problem (environment, health, or education issue)")
+
         uploaded_file = st.file_uploader(
             "Choose an image...",
             type=['png', 'jpg', 'jpeg', 'gif', 'webp'],
             help="Supported formats: PNG, JPG, JPEG, GIF, WEBP"
         )
-        
+
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
             if uploaded_file is not None:
                 # Display uploaded image
                 image = Image.open(uploaded_file)
-                st.image(image, caption="Uploaded Image", use_container_width=True)
-        
+                st.image(image, caption="Uploaded Image",
+                         use_container_width=True)
+
         # Analyze button
         if uploaded_file is not None:
             if st.button("Analyze Image", key="analyze_image"):
-                domains = st.session_state.get('selected_domains', Config.CATEGORIES)
+                domains = st.session_state.get(
+                    'selected_domains', Config.CATEGORIES)
                 result = process_image(uploaded_file, domains)
                 st.session_state.analysis_result = result
-    
+
     else:  # Text description
         # Text input section
         st.markdown("### Describe the Community Problem")
-        st.markdown("Write a brief description of the community issue you want to address")
-        
+        st.markdown(
+            "Write a brief description of the community issue you want to address")
+
         problem_description = st.text_area(
             "Problem Description:",
             placeholder="Example: Our street is always flooded when it rains...",
             height=150,
             help="Describe the community problem in your own words"
         )
-        
+
         # Analyze button
         if problem_description:
             if st.button("Analyze Description", key="analyze_text"):
                 result = process_text(problem_description)
                 st.session_state.analysis_result = result
-    
+
     # Display results if available
     if st.session_state.analysis_result:
         st.markdown("---")
         st.markdown("## Analysis Results")
         display_results(st.session_state.analysis_result)
+
 
 if __name__ == "__main__":
     main()
